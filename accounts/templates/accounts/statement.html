@@ -1,0 +1,17 @@
+{% extends "accounts/base.html" %}
+
+{% block content %}
+    <table>
+        {% for transaction in transaction_list %}
+            <tr>
+                <td>{{ transaction }}</td>
+            </tr>
+        {% empty %}                
+            <p>No transactions are available</p>
+        {% endfor %}
+    </table>
+    <form action="" method="POST">
+        {% csrf_token %}
+        <input type="submit" value="Save Statement">
+    </form>
+{% endblock content %}

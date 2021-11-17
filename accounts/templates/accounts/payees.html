@@ -1,0 +1,29 @@
+{% extends "accounts/base.html" %}
+        
+{% block content %}          
+    <table>
+        {% for transaction in transaction_list %}
+            <tr>
+                <td>{{ transaction }}</td>
+            </tr>
+        {% empty %}                
+            <p>No transactions are available</p>
+        {% endfor %}
+    </table>
+   
+        <form action="" method="POST">
+            {% csrf_token %}
+            {{ formset.management_form }}
+            <table>
+                {% for form in formset %}
+                <tr>
+                    {% for field in form %}
+                        <td>{{ field.label_tag }}</td><td>{{ field }}</td><td>{{ field.errors }}</td>
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </table>
+            <input type="submit" value="Save Payees">
+        </form>
+    
+{% endblock content %}

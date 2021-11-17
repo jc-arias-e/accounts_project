@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+    <html>
+        <head>
+            <meta charset="utf-8">
+            <title>Accounts</title>
+            {% load static %}
+            <link rel="stylesheet" type="text/css" href="{% static 'accounts/style.css' %}" >
+        </head>
+        
+        <body>
+            <div id="mainWrapper"
+                <header>
+                    <h1>Accounts Manager</h1>
+                </header>
+                <nav>
+                    <p>Balance Date {{ balance_date }}</p>
+                    <a href="{% url 'accounts:index' %}">Overview</a>
+                    <a href="{% url 'accounts:upload_statement' %}">Upload Statement</a>
+                    <a href="{% url 'accounts:select_date' %}">Select Month</a>
+                </nav>
+                <main>
+                    {% block content %}{% endblock %}                             
+                </main>
+            </div>
+        </body>
+    </html>

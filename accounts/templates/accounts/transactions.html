@@ -1,0 +1,27 @@
+{% extends "accounts/base.html" %}
+        
+{% block content %}          
+        <table>
+            {% for transaction in transaction_list %}
+                <tr>
+                    <td>{{ transaction.account.name }}</td>
+                    <td>{{ transaction.date }}</td>
+                    <td><a href="{% url 'accounts:alias_transactions' transaction.alias.id %}">{{ transaction.alias.name }}</a></td>
+                    <td>{{ transaction.alias.category.name }}</td>
+                    <td>{{ transaction.alias.subcategory.name }}</td>
+                    {% if transaction.account.type == 'A' and transaction.alias.category.type == 'E' and  not is_account %}
+                        <td>{{ transaction.amount|cut:'-' }}</td>
+                    {% else %}
+                        <td>{{ transaction.amount }}</td>
+                    {% endif %}
+                        </tr>
+            {% empty %}
+                <p>No transactions are available</p>
+            {% endfor %}
+        </table>
+        {% if is_account %}
+            <p>Account Balance {{ balance }}</p>
+        {% else %}
+            <p>Total {{ total }}</p>
+        {% endif %}
+{% endblock content %}
