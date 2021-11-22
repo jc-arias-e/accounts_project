@@ -11,7 +11,6 @@ class Account(models.Model):
     ]
     type = models.CharField(max_length=1, choices=ACCOUNT_TYPE_CHOICES, default=ASSET)
     initial_balance = models.DecimalField(max_digits=8, decimal_places=2, default=0)
-    balance = 0
 
     def __str__(self):
         return self.name
@@ -26,7 +25,6 @@ class Category(models.Model):
         (EXPENSE, 'Expense'),
     ]
     type = models.CharField(max_length=1, choices=CATEGORY_TYPE_CHOICES, default=EXPENSE)
-    total = 0
 
     def __str__(self):
         return self.name
@@ -38,7 +36,6 @@ class Category(models.Model):
 class Subcategory(models.Model):
     name = models.CharField(max_length=30)
     category = models.ForeignKey(Category, on_delete=models.CASCADE)
-    total = 0
 
     def __str__(self):
         return self.name
@@ -82,3 +79,6 @@ class DoubleEntry(models.Model):
     account_A = models.ForeignKey(Account, on_delete=models.CASCADE, related_name='+')
     account_B = models.ForeignKey(Account, on_delete=models.CASCADE, related_name='+')
 
+
+class Parameters(models.Model):
+    date = models.DateField()

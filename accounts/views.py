@@ -1,156 +1,129 @@
 from django.forms.formsets import formset_factory
-from django.views import generic
+from django.views.generic import ListView
 from django.http import HttpResponseRedirect
 from django.shortcuts import render
 from django.urls import reverse
 import datetime
 
-from .models import Transaction, Account, Alias, Category, Subcategory
+from .models import Parameters, Transaction, Account, Alias, Category, Subcategory
 from .forms import UploadFileForm, PayeeForm, DateForm
 from . import modules
                 
     
-class IndexView(generic.ListView):
-    template_name = 'accounts/index.html'
-    assets = 0
-    liabilities = 0
-    income = 0
-    expenses = 0
+class IndexView(ListView):
+    model = Account
     
-    
-    def get_queryset(self):
-        """ Check balance date """
-        if 'balance_date' in self.request.session:
-            balance_date = self.request.session['balance_date']
-        else:
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        # Check if called from index or history path
+        if self.template_name == 'accounts/index.html':
             balance_date = Transaction.objects.all().order_by('-date').first().date
-            self.request.session['balance_date'] = balance_date.isoformat()
-
-        """ Calculate balance for each account """    
-        account_list, self.assets, self.liabilities = modules.create_balance(balance_date)
-        return account_list
-    
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['balance_date'] = self.request.session['balance_date']
-        context['assets'] = self.assets
-        context['liabilities'] = self.liabilities
-        context['capital'] = self.assets - self.liabilities
-
-        """ Calculate profit compared to previous balance """
-        balance_date = datetime.date.fromisoformat(self.request.session['balance_date'])
-        prev_date = datetime.date(balance_date.year, balance_date.month, 1) - datetime.timedelta(days=1)
-        prev_list, prev_assets, prev_liabilities = modules.create_balance(prev_date)
-        context['balance_profit'] = (self.assets - self.liabilities) - (prev_assets - prev_liabilities)
+        else:
+            balance_date = Parameters.objects.get(pk=1).date
         
-        """ Calculate total for each category """
-        category_list = Category.objects.all()
-        balance_month = datetime.date.fromisoformat(self.request.session['balance_date']).month
-        for category in category_list:
-            for transaction in Transaction.objects.filter(alias__category=category, date__month=balance_month):
-                if transaction.account.type == 'A' and transaction.alias.category.type == 'E':
-                    transaction.amount = -transaction.amount
-                category.total += transaction.amount
-            if category.type == 'I':
-                self.income += category.total
-            if category.type == 'E':
-                self.expenses += category.total
-                
-        """ Calculate total for each subcategory """
-        subcategory_list = Subcategory.objects.all()
-        balance_month = datetime.date.fromisoformat(self.request.session['balance_date']).month
-        for subcategory in subcategory_list:
-            for transaction in Transaction.objects.filter(alias__subcategory=subcategory, date__month=balance_month):
-                if transaction.account.type == 'A' and transaction.alias.subcategory.category.type == 'E':
-                    transaction.amount = -transaction.amount
-                subcategory.total += transaction.amount
+        # Calculate balance summary
+        account_list = modules.add_account_totals(balance_date)
+        assets, liabilities = modules.get_balance_summary(account_list)
+        context['balance_date'] = balance_date
+        context['account_list'] = account_list
+        context['assets'] = assets
+        context['liabilities'] = liabilities
+        context['capital'] = assets - liabilities
+
+        # Calculate profit comparing with previous balance
+        prev_date = datetime.date(balance_date.year, balance_date.month, 1) - datetime.timedelta(days=1)
+        prev_account_list = modules.add_account_totals(prev_date)
+        prev_assets, prev_liabilities = modules.get_balance_summary(prev_account_list)
+        context['balance_profit'] = (assets - liabilities) - (prev_assets - prev_liabilities)
                
+        # Calculate category totals
+        category_list, income, expenses = modules.get_expenses_report(balance_date)
         context['category_list'] = category_list
-        context['subcategory_list'] = subcategory_list
-        context['income'] = self.income
-        context['expenses'] = self.expenses
-        context['profit'] = self.income - self.expenses
+        context['income'] = income
+        context['expenses'] = expenses
+        context['profit'] = income - expenses
+                
+        # Calculate subcategory totals              
+        context['subcategory_list'] = modules.add_subcategory_totals(balance_date)
+        
         return context
 
     
-class AccountView(generic.ListView):
-    template_name = 'accounts/transactions.html'
-    balance = 0
+class AccountView(ListView):
+    model = Transaction
     
-    def get_queryset(self):
-        balance_date = self.request.session['balance_date']
-        transaction_list = Transaction.objects.filter(account__id=self.kwargs['pk'], date__lte=balance_date)
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        # Check if called from account_transactions or account_history path
+        if self.template_name == 'accounts/transactions.html':
+            balance_date = Transaction.objects.all().order_by('-date').first().date
+        else:
+            balance_date = Parameters.objects.get(pk=1).date
+
         account = Account.objects.get(pk=self.kwargs['pk'])
-        self.balance = account.initial_balance
-        for transaction in transaction_list:
-            self.balance += transaction.amount
-        return transaction_list
-    
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['balance'] = self.balance
-        context['is_account'] = True
-        context['balance_date'] = datetime.date.fromisoformat(self.request.session['balance_date'])
+        context['balance_date'] = balance_date
+        context['transaction_list'] = Transaction.objects.filter(account=account, date__month=balance_date.month)
+        context['balance'] = modules.sum_account(account, balance_date)
+        context['is_account'] = True      
         return context
     
     
-class CategoryView(generic.ListView):
-    template_name = 'accounts/transactions.html'
-    total = 0
-    
-    def get_queryset(self):
-        balance_month = datetime.date.fromisoformat(self.request.session['balance_date']).month
-        transaction_list = Transaction.objects.filter(alias__category__id=self.kwargs['pk'], date__month=balance_month)
-        for transaction in transaction_list:
-            if transaction.account.type == 'A' and transaction.alias.category.type == 'E':
-                transaction.amount = -transaction.amount
-            self.total += transaction.amount
-        return transaction_list
+class CategoryView(ListView):
+    model = Transaction
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['total'] = self.total
-        context['balance_date'] = datetime.date.fromisoformat(self.request.session['balance_date'])
+
+        # Check if called from category_transactions or category_history path
+        if self.template_name == 'accounts/transactions.html':
+            balance_date = Transaction.objects.all().order_by('-date').first().date
+        else:
+            balance_date = Parameters.objects.get(pk=1).date
+
+        category = Category.objects.get(pk=self.kwargs['pk'])
+        context['balance_date'] = balance_date
+        context['transaction_list'] = Transaction.objects.filter(alias__category=category, date__month=balance_date.month)
+        context['total'] = modules.sum_category(category, balance_date)
         return context
     
     
-class SubcategoryView(generic.ListView):
-    template_name = 'accounts/transactions.html'
-    total = 0
-    
-    def get_queryset(self):
-        balance_month = datetime.date.fromisoformat(self.request.session['balance_date']).month
-        transaction_list = Transaction.objects.filter(alias__subcategory__id=self.kwargs['pk'], date__month=balance_month)
-        for transaction in transaction_list:
-            if transaction.account.type == 'A' and transaction.alias.category.type == 'E':
-                transaction.amount = -transaction.amount
-            self.total += transaction.amount
-        return transaction_list
+class SubcategoryView(ListView):
+    model = Transaction
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['total'] = self.total
-        context['balance_date'] = datetime.date.fromisoformat(self.request.session['balance_date'])
+
+        # Check if called from subcategory_transactions or subcategory_history path
+        if self.template_name == 'accounts/transactions.html':
+            balance_date = Transaction.objects.all().order_by('-date').first().date
+        else:
+            balance_date = Parameters.objects.get(pk=1).date
+        
+        subcategory = Subcategory.objects.get(pk=self.kwargs['pk'])
+        context['balance_date'] = balance_date
+        context['transaction_list'] = Transaction.objects.filter(alias__subcategory=subcategory, date__month=balance_date.month)
+        context['total'] = modules.sum_subcategory(subcategory, balance_date)
         return context
     
     
-class AliasView(generic.ListView):
-    template_name = 'accounts/transactions.html'
-    total = 0
-    
-    def get_queryset(self):
-        balance_month = datetime.date.fromisoformat(self.request.session['balance_date']).month
-        transaction_list = Transaction.objects.filter(alias__id=self.kwargs['pk'], date__month=balance_month)
-        for transaction in transaction_list:
-            if transaction.account.type == 'A' and transaction.alias.category.type == 'E':
-                transaction.amount = -transaction.amount
-            self.total += transaction.amount
-        return transaction_list
+class AliasView(ListView):
+    model = Transaction
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['total'] = self.total
-        context['balance_date'] = datetime.date.fromisoformat(self.request.session['balance_date'])
+
+                # Check if called from subcategory_transactions or subcategory_history path
+        if self.template_name == 'accounts/transactions.html':
+            balance_date = Transaction.objects.all().order_by('-date').first().date
+        else:
+            balance_date = Parameters.objects.get(pk=1).date
+
+        alias = Alias.objects.get(pk=self.kwargs['pk'])
+        context['balance_date'] = balance_date
+        context['transaction_list'] = Transaction.objects.filter(alias=alias, date__month=balance_date.month)
+        context['total'] = modules.sum_alias(alias, balance_date)
         return context
     
     
@@ -222,9 +195,16 @@ def select_date(request):
     if request.method == 'POST':
         form = DateForm(request.POST)
         if form.is_valid():
-            #change date
-            request.session['balance_date'] = request.POST['date']
-            return HttpResponseRedirect(reverse('accounts:index'))
+            #save date
+            if Parameters.objects.all().count() == 0:
+                Parameters.objects.create(date=request.POST['date'])
+            else:
+                parameter = Parameters.objects.get(pk=1)
+                parameter.date = request.POST['date']
+                parameter.save()
+            return HttpResponseRedirect(reverse('accounts:history'))
     else:
         form = DateForm()
     return render(request, 'accounts/balance_date.html', { 'form': form })
+
+

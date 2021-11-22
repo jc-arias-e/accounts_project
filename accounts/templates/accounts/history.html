@@ -2,12 +2,15 @@
         
 {% block content %}
     <p>Balance Date {{ balance_date }}</p>
+    <nav>
+        <a href="{% url 'accounts:history' %}">Summary</a>
+    </nav>
     <div class="report">
         <h2>Accounts Balance</h2>
         <table>
             {% for account in account_list %}
                 <tr>
-                    <td><a href="{% url 'accounts:account_transactions' account.id %}">{{ account.name }}</a></td>
+                    <td><a href="{% url 'accounts:account_history' account.id %}">{{ account.name }}</a></td>
                     <td>{{ account.total|floatformat:2 }}</td>
                 </tr>
             {% empty %}
@@ -26,13 +29,13 @@
         <table>
             {% for category in category_list %}
                 <tr>
-                    <td><a href="{% url 'accounts:category_transactions' category.id %}">{{ category.name }}</a></td>
+                    <td><a href="{% url 'accounts:category_history' category.id %}">{{ category.name }}</a></td>
                     <td>{{ category.total|floatformat:2 }}</td>
                 </tr>
                 {% for subcategory in subcategory_list %}
                     {% if subcategory in category.subcategory_set.all %}
                         <tr>
-                            <td><a href="{% url 'accounts:subcategory_transactions' subcategory.id %}">{{ subcategory.name }}</a></td>
+                            <td><a href="{% url 'accounts:subcategory_history' subcategory.id %}">{{ subcategory.name }}</a></td>
                             <td>{{ subcategory.total|floatformat:2 }}</td>
                         </tr>
                     {% endif %}

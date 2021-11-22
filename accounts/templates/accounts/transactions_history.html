@@ -1,7 +1,10 @@
 {% extends "accounts/base.html" %}
         
 {% block content %}
-    <p>Balance Date {{ balance_date }}</p>          
+    <p>Balance Date {{ balance_date }}</p>
+    <nav>
+        <a href="{% url 'accounts:history' %}">Summary</a>
+    </nav>     
     <table>
         {% for transaction in transaction_list %}
             <tr>
