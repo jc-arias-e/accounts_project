@@ -1,0 +1,16 @@
+{% extends "accounts/base.html" %}
+
+{% block content %}
+<table>
+    {% for payee in payee_list %}
+        <tr>
+            <td>{{ payee.name }}</td>
+            <td><a href="{% url 'accounts:alias_transactions' payee.alias.id %}">{{ payee.alias.name }}</a></td>
+            <td>{{ payee.alias.category }}</td>
+            <td>{{ payee.alias.subcategory }}</td>
+        </tr>
+    {% empty %}
+        <p>No payees available </p>
+    {% endfor %}
+</table>
+{% endblock content %}

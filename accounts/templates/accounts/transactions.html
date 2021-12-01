@@ -23,6 +23,9 @@
     {% if is_account %}
         <p>Account Balance {{ balance|floatformat:2 }}</p>
     {% else %}
-        <p>Total {{ total|floatformat:2 }}</p>
+        <!-- display total if alias is not a double entry -->
+        {% if has_category %}
+            <p>Total {{ total|floatformat:2 }}</p>
+        {% endif %}
     {% endif %}
 {% endblock content %}

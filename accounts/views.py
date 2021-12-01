@@ -4,9 +4,10 @@ from django.http import HttpResponseRedirect
 from django.shortcuts import render
 from django.urls import reverse
 import datetime
+from decimal import Decimal
 
-from .models import Parameters, Transaction, Account, Alias, Category, Subcategory
-from .forms import UploadFileForm, PayeeForm, DateForm
+from .models import DoubleEntry, Parameters, Transaction, Account, Payee, Alias, Category, Subcategory
+from .forms import UploadFileForm, AliasForm, PayeeForm, DateForm, DoubleEntryForm
 from . import modules
                 
     
@@ -124,8 +125,26 @@ class AliasView(ListView):
         context['balance_date'] = balance_date
         context['transaction_list'] = Transaction.objects.filter(alias=alias, date__month=balance_date.month)
         context['total'] = modules.sum_alias(alias, balance_date)
+        context['has_category'] = alias.category
         return context
-    
+
+
+def select_date(request):
+    if request.method == 'POST':
+        form = DateForm(request.POST)
+        if form.is_valid():
+            #save date
+            if Parameters.objects.all().count() == 0:
+                Parameters.objects.create(date=request.POST['date'])
+            else:
+                parameter = Parameters.objects.get(pk=1)
+                parameter.date = request.POST['date']
+                parameter.save()
+            return HttpResponseRedirect(reverse('accounts:history'))
+    else:
+        form = DateForm()
+    return render(request, 'accounts/balance_date.html', { 'form': form })
+
     
 # file upload
 def upload_statement(request):
@@ -135,7 +154,7 @@ def upload_statement(request):
             transaction_list = modules.read_statement(request.FILES['statement'], request.POST['account'])
             transaction_list_updated, new_payees = modules.assign_alias(transaction_list)
             request.session['transaction_list'] = transaction_list_updated
-            # choose the nex view
+            # choose the next view
             if new_payees != []:
                 request.session['new_payees'] = new_payees
                 return HttpResponseRedirect(reverse('accounts:create_payees'))
@@ -148,7 +167,7 @@ def upload_statement(request):
 
 # display transactions to assign alias to new payees or create new aliases
 def create_payees(request):
-    transaction_list = request.session['transaction_list']  # review
+    transaction_list = request.session['transaction_list']
     new_payees = request.session['new_payees']
     PayeeFormSet = formset_factory(PayeeForm, extra=0)
     
@@ -169,6 +188,49 @@ def create_payees(request):
     return render(request, 'accounts/payees.html', context)
 
 
+def create_alias(request):
+    transaction_list = request.session['transaction_list']
+
+    if request.method == 'POST':
+        form = AliasForm(request.POST)
+        if form.is_valid():
+            if 'double_entry' in request.POST:
+                # save new alias
+                form.save()
+                # request double_entry data
+                return HttpResponseRedirect(reverse('accounts:double_entry'))
+            
+            return HttpResponseRedirect(reverse('accounts:create_payees'))
+    else:
+        form = AliasForm()
+    
+    context = {
+        'transaction_list': transaction_list,
+        'form': form
+    }
+    return render(request, 'accounts/alias.html', context)
+
+
+#create double entry for new alias
+def double_entry(request):
+    transaction_list = request.session['transaction_list']
+
+    if request.method == 'POST':
+        form = DoubleEntryForm(request.POST)
+        if form.is_valid():
+            form.save()
+            return HttpResponseRedirect(reverse('accounts:create_payees'))
+    else:
+        alias = Alias.objects.last()
+        account_a = Account.objects.get(name=transaction_list[0][3])
+        form = DoubleEntryForm(initial={ 'alias': alias, 'account_a': account_a })
+
+    context = {
+        'transaction_list': transaction_list,
+        'form': form
+    }
+    return render(request, 'accounts/double_entry.html', context )
+
 
 def save_statement(request):
     transaction_list = request.session['transaction_list']
@@ -177,34 +239,59 @@ def save_statement(request):
     if request.method == 'POST':
         # save data
         for transaction in transaction_list_updated:
+            # format date
             date_list = transaction[0].split('/')
             if date_list[0] != 4:
                 date = date_list[2] + '-' + date_list[1] + '-' + date_list[0]
             else:
                 date = date_list[0] + '-' + date_list[1] + '-' + date_list[2]
+            
             alias = Alias.objects.get(name=transaction[1])
             account = Account.objects.get(name=transaction[3])
+            
+            # save transaction
             full_transaction = Transaction(date=date, alias=alias, amount=transaction[2], account=account)
             full_transaction.save()
+
+            # save double_entry if required
+            try:
+                account_b = DoubleEntry.objects.get(alias=alias).account_b
+                double_transaction = Transaction(date=date, alias=alias, amount=transaction[2], account=account_b)
+                if account.type == account_b.type:
+                    double_transaction.amount = -Decimal(double_transaction.amount)
+                double_transaction.save()
+            except DoubleEntry.DoesNotExist:
+                pass
+
         return HttpResponseRedirect(reverse('accounts:index'))
-
-    return render(request, 'accounts/statement.html', { 'transaction_list': transaction_list_updated })
-
-    
-def select_date(request):
-    if request.method == 'POST':
-        form = DateForm(request.POST)
-        if form.is_valid():
-            #save date
-            if Parameters.objects.all().count() == 0:
-                Parameters.objects.create(date=request.POST['date'])
-            else:
-                parameter = Parameters.objects.get(pk=1)
-                parameter.date = request.POST['date']
-                parameter.save()
-            return HttpResponseRedirect(reverse('accounts:history'))
     else:
-        form = DateForm()
-    return render(request, 'accounts/balance_date.html', { 'form': form })
+        # if request.method is GET remove exisitng transactions before sending POST for saving
+        new_transaction_list = []
+        count = 0
+        for transaction in transaction_list_updated:
+            # format date
+            date_list = transaction[0].split('/')
+            if date_list[0] != 4:
+                date = date_list[2] + '-' + date_list[1] + '-' + date_list[0]
+            else:
+                date = date_list[0] + '-' + date_list[1] + '-' + date_list[2]
+            
+            alias = Alias.objects.get(name=transaction[1])
+            account = Account.objects.get(name=transaction[3])
+            
+            # check if transaction exists to be removed from the list
+            exists = Transaction.objects.get(date=date, alias=alias, amount=transaction[2], account=account)
+            if exists:
+                count += 1
+            else:
+                new_transaction_list.add(transaction)
 
+        request.session['transaction_list'] = new_transaction_list
+        message = str(count) + ' transactions already existing were removed!'
+        return render(request, 'accounts/statement.html', { 'transaction_list': new_transaction_list, 'message': message })
+
+
+class PayeeView(ListView):
+    model = Payee
+    template_name = 'accounts/payees_list.html'
 

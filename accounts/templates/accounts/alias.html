@@ -1,8 +1,7 @@
 {% extends "accounts/base.html" %}
-
+        
 {% block content %}
-    <p>Upload Statement</p>
-    <p>{{ message }}</p>
+    <p>Upload Statement</p>        
     <table>
         {% for transaction in transaction_list %}
             <tr>
@@ -12,8 +11,10 @@
             <p>No transactions are available</p>
         {% endfor %}
     </table>
+    
     <form action="" method="POST">
         {% csrf_token %}
-        <input type="submit" value="Save Statement">
+        {{ form }}
+        <input type="submit" value="Save Alias">
     </form>
 {% endblock content %}

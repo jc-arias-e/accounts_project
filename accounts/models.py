@@ -76,8 +76,8 @@ class Payee(models.Model):
 
 class DoubleEntry(models.Model):
     alias = models.ForeignKey(Alias, on_delete=models.CASCADE)
-    account_A = models.ForeignKey(Account, on_delete=models.CASCADE, related_name='+')
-    account_B = models.ForeignKey(Account, on_delete=models.CASCADE, related_name='+')
+    account_a = models.ForeignKey(Account, on_delete=models.CASCADE, related_name='+')
+    account_b = models.ForeignKey(Account, on_delete=models.CASCADE, related_name='+')
 
 
 class Parameters(models.Model):

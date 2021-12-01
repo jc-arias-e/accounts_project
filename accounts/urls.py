@@ -17,4 +17,7 @@ urlpatterns = [
     path('create/payees', views.create_payees, name='create_payees'),
     path('save/statement', views.save_statement, name='save_statement'),
     path('select/date', views.select_date, name='select_date'),
+    path('create/alias', views.create_alias, name='create_alias'),
+    path('double/entry', views.double_entry, name='double_entry'),
+    path('payees', views.PayeeView.as_view(), name='payees'),
 ]

@@ -1,6 +1,10 @@
 {% extends "accounts/base.html" %}
         
-{% block content %}          
+{% block content %}
+    <p>Upload Statement</p>
+    <nav>
+        <a href="{% url 'accounts:create_alias' %}">New Alias</a>
+    </nav>          
     <table>
         {% for transaction in transaction_list %}
             <tr>
@@ -16,13 +20,14 @@
         {{ formset.management_form }}
         <table>
             {% for form in formset %}
-                <tr>
-                    {% for field in form %}
-                        <td>{{ field.label_tag }}</td><td>{{ field }}</td><td>{{ field.errors }}</td>
-                    {% endfor %}
-                </tr>
+            <tr>
+                {% for field in form %}
+                    <td>{{ field.label_tag }}</td><td>{{ field }}</td>
+                {% endfor %}
+            </tr>
             {% endfor %}
         </table>
         <input type="submit" value="Save Payees">
-    </form>   
+    </form>
+
 {% endblock content %}

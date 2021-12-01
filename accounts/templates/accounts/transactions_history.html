@@ -10,7 +10,7 @@
             <tr>
                 <td>{{ transaction.account.name }}</td>
                 <td>{{ transaction.date }}</td>
-                <td><a href="{% url 'accounts:alias_transactions' transaction.alias.id %}">{{ transaction.alias.name }}</a></td>
+                <td><a href="{% url 'accounts:alias_history' transaction.alias.id %}">{{ transaction.alias.name }}</a></td>
                 <td>{{ transaction.alias.category.name }}</td>
                 <td>{{ transaction.alias.subcategory.name }}</td>
                 {% if transaction.account.type == 'A' and transaction.alias.category.type == 'E' and  not is_account %}

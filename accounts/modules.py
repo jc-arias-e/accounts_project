@@ -70,11 +70,11 @@ def add_subcategory_totals(balance_date):
 
 
 def sum_alias(alias, balance_date):
-    q = Account.objects.filter(transaction__alias=alias, transaction__date__month=balance_date.month).annotate(total=Sum('transaction_amount'))
+    q = Account.objects.filter(transaction__alias=alias, transaction__date__month=balance_date.month).annotate(total=Sum('transaction__amount'))
     total = 0
     if q:
         for account in q:
-            if alias.category.type == 'E' and account.type == 'A':
+            if alias.category and alias.category.type == 'E' and account.type == 'A':
                 account.total = -account.total
             total += account.total
     return total

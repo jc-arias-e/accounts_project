@@ -4,20 +4,13 @@ body {
 }
 
 #mainWrapper {
-    width: 75%;
+    width: 80%;
     margin: 0 auto;
-}
-
-header {
-
 }
 
 /* navigation */
 nav {
     border-bottom: 1px solid grey;
-}
-
-main {
 }
 
 .report {
