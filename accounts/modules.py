@@ -40,14 +40,16 @@ def sum_category(category, balance_date):
 
 
 def get_expenses_report(balance_date):
-    category_list = Category.objects.all()
+    category_list = []
     income, expenses = 0, 0
-    for category in category_list:
+    for category in Category.objects.all():
         category.total = sum_category(category, balance_date)
-        if category.type == 'I':
-            income += category.total
-        if category.type == 'E':
-            expenses += category.total
+        if category.total != 0:
+            category_list.append(category)
+            if category.type == 'I':
+                income += category.total
+            if category.type == 'E':
+                expenses += category.total
     return category_list, income, expenses
 
 
@@ -63,9 +65,11 @@ def sum_subcategory(subcategory, balance_date):
 
 
 def add_subcategory_totals(balance_date):
-    subcategory_list = Subcategory.objects.all()
-    for subcategory in subcategory_list:
+    subcategory_list = []
+    for subcategory in Subcategory.objects.all():
         subcategory.total = sum_subcategory(subcategory, balance_date)
+        if subcategory.total != 0:
+            subcategory_list.append(subcategory)
     return subcategory_list
 
 
@@ -92,7 +96,9 @@ def read_statement(statement, account_id):
     account = Account.objects.get(pk=account_id)
     for line in lines[1:]:
         fields = line.strip().split('\t')
-        fields.append(account.name)
+        fields.insert(0, account.name)
+        fields.insert(3, 'New')
+        fields.insert(4, '')
         transaction_list.append(fields)   
     return transaction_list
 
@@ -101,11 +107,17 @@ def assign_alias(transaction_list):
     new_payees = []
     for transaction in transaction_list:
         try:
-            payee = Payee.objects.get(name=transaction[1])
-            transaction[1] = payee.alias.name
+            payee = Payee.objects.get(name=transaction[2])
+            transaction[2] = payee.alias.name
+            if payee.alias.category:
+                transaction[3] = payee.alias.category.name
+            else:
+                transaction[3] = ''
+            if payee.alias.subcategory:
+                transaction[4] = payee.alias.subcategory.name
         except Payee.DoesNotExist:
-            if transaction[1] not in new_payees:
-                new_payees.append(transaction[1])
+            if transaction[2] not in new_payees:
+                new_payees.append(transaction[2])
     return transaction_list, new_payees
         
 

@@ -115,7 +115,7 @@ class AliasView(ListView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
-                # Check if called from subcategory_transactions or subcategory_history path
+        # Check if called from subcategory_transactions or subcategory_history path
         if self.template_name == 'accounts/transactions.html':
             balance_date = Transaction.objects.all().order_by('-date').first().date
         else:
@@ -222,7 +222,7 @@ def double_entry(request):
             return HttpResponseRedirect(reverse('accounts:create_payees'))
     else:
         alias = Alias.objects.last()
-        account_a = Account.objects.get(name=transaction_list[0][3])
+        account_a = Account.objects.get(name=transaction_list[0][0])
         form = DoubleEntryForm(initial={ 'alias': alias, 'account_a': account_a })
 
     context = {
@@ -240,23 +240,23 @@ def save_statement(request):
         # save data
         for transaction in transaction_list_updated:
             # format date
-            date_list = transaction[0].split('/')
+            date_list = transaction[1].split('/')
             if date_list[0] != 4:
                 date = date_list[2] + '-' + date_list[1] + '-' + date_list[0]
             else:
                 date = date_list[0] + '-' + date_list[1] + '-' + date_list[2]
             
-            alias = Alias.objects.get(name=transaction[1])
-            account = Account.objects.get(name=transaction[3])
+            alias = Alias.objects.get(name=transaction[2])
+            account = Account.objects.get(name=transaction[0])
             
             # save transaction
-            full_transaction = Transaction(date=date, alias=alias, amount=transaction[2], account=account)
+            full_transaction = Transaction(date=date, alias=alias, amount=transaction[5], account=account)
             full_transaction.save()
 
             # save double_entry if required
             try:
                 account_b = DoubleEntry.objects.get(alias=alias).account_b
-                double_transaction = Transaction(date=date, alias=alias, amount=transaction[2], account=account_b)
+                double_transaction = Transaction(date=date, alias=alias, amount=transaction[5], account=account_b)
                 if account.type == account_b.type:
                     double_transaction.amount = -Decimal(double_transaction.amount)
                 double_transaction.save()
@@ -270,17 +270,17 @@ def save_statement(request):
         count = 0
         for transaction in transaction_list_updated:
             # format date
-            date_list = transaction[0].split('/')
+            date_list = transaction[1].split('/')
             if date_list[0] != 4:
                 date = date_list[2] + '-' + date_list[1] + '-' + date_list[0]
             else:
                 date = date_list[0] + '-' + date_list[1] + '-' + date_list[2]
             
-            alias = Alias.objects.get(name=transaction[1])
-            account = Account.objects.get(name=transaction[3])
+            alias = Alias.objects.get(name=transaction[2])
+            account = Account.objects.get(name=transaction[0])
             
             # check if transaction exists to be removed from the list
-            exists = Transaction.objects.get(date=date, alias=alias, amount=transaction[2], account=account)
+            exists = Transaction.objects.get(date=date, alias=alias, amount=transaction[5], account=account)
             if exists:
                 count += 1
             else:

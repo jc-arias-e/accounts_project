@@ -5,7 +5,9 @@
     <table>
         {% for transaction in transaction_list %}
             <tr>
-                <td>{{ transaction }}</td>
+                {% for field in transaction %}
+                    <td>{{ field }}</td>
+                {% endfor %}
             </tr>
         {% empty %}                
             <p>No transactions are available</p>

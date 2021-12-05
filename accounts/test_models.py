@@ -2,7 +2,7 @@ from django.test import TestCase
 from decimal import Decimal
 import datetime
 
-from .models import Transaction, Alias, Category, Subcategory, Account
+from .models import Transaction, Alias, Category, Subcategory, Account, DoubleEntry
 
 
 class TransactionModelTest(TestCase):
@@ -53,3 +53,13 @@ class TransactionModelTest(TestCase):
         self.assertEqual(transaction.amount, Decimal('-23.45'))
         self.assertEqual(transaction.account, account)
         
+    def test_double_entry_created(self):
+        alias = Alias.objects.create(name='CREDIT CARD PAYMENT')
+        account_a = Account.objects.create(name='BankAccount', type='A')
+        account_b = Account.objects.get(name='Mastercard')
+        double_entry = DoubleEntry.objects.create(alias=alias, account_a=account_a, account_b=account_b)
+        self.assertEqual(double_entry.alias, alias)
+        self.assertEqual(double_entry.alias.category, None)
+        self.assertEqual(double_entry.alias.subcategory, None)
+        self.assertEqual(double_entry.account_a, account_a)
+        self.assertEqual(double_entry.account_b, account_b)
